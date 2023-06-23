@@ -91,7 +91,8 @@ local function setMark(char)
 end
 
 local character_metatable = {
-  __index = character_functions
+  __index = character_functions,
+  __type = "Character"
 }
 function CharactersAPI.newCharacter(index)
   if index == nil then
