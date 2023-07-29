@@ -1,8 +1,7 @@
-local json = require("sjson")
 local characterIndex = {}
 local character = {}
 local characterPart = {}
-
+local CharactersAPI = {}
 local updateFuncs = {
   name = function(char)
     nameplate.ALL:setText(char.name)
@@ -12,12 +11,14 @@ local updateFuncs = {
       you:setVisible(false)
     end
     local part = characterPart[char.index]
-    part:setVisible(true)
-    if char.texture then
-      part:setPrimaryTexture("custom",char.texture)
-      part:setUVPixels(char.UV)
+    if part then
+      part:setVisible(true)
+      if char.texture then
+        part:setPrimaryTexture("custom",char.texture)
+        part:setUVPixels(char.UV)
+      end
+      part:setScale(char.size or vec(1,1,1))
     end
-    part:setScale(char.size or vec(1,1,1))
     vanilla_model.PLAYER:setVisible(not part)
   end,
   size = function(char)
@@ -28,6 +29,9 @@ local updateFuncs = {
   end,
   mark = function(char)
     avatar:setColor(char.mark or deffal)
+  end,
+  UV = function(char)
+    characterPart[char.index]:setUVPixels(char.size or vec(1,1,1))
   end
 }
 
@@ -68,6 +72,14 @@ setTexture = function(self, texture)
   end
   return self
 end,
+setUV = function(self, UV)
+  local ID = self.index
+  self.UV = UV
+  if ID == character.current then
+    updateChar("UV",self)
+  end
+  return self
+end,
 setMarkColor = function(self, color)
   local ID = self.index
   self.mark = vectors.hexToRGB(color)
@@ -75,16 +87,17 @@ setMarkColor = function(self, color)
     updateChar("mark",self)
   end
   return self
+end,
+setCharacter = function(self)
+  local ID = self.index
+  CharactersAPI.setCharacter(ID)
+  return self
 end
 }
-local CharactersAPI = {}
-local deffal = vectors.hexToRGB(avatar:getColor() or "#4c8cff")
-local characterNameTbl = {}
 
+local deffal = vectors.hexToRGB(avatar:getColor() or "#4c8cff")
 local characterCount = 0
 local wwit = "#ffffff"
-
-
 
 local function setMark(char)
   avatar:setColor(char.mark or deffal)
@@ -106,35 +119,7 @@ function CharactersAPI.newCharacter(index)
   local char = character[index]
   char.index = index
   setmetatable(char, character_metatable)
-  --[[for fek, you in pairs(characterMethods) do
-    char[fek] = you
-  end]]
   return char,index
-end
-function CharactersAPI.create(index,modelpart,texture,name,color,mark,UV,badgecol,sz)
-  local char,index = CharactersAPI.newCharacter(index)
-  characterPart[index] = modelpart
-  char.size = type(sz) == "number" and vec(sz,sz,sz) or sz
-  char.texture = texture
-  char.color = color
-  char.UV = UV
-  local nameble = {
-    {text = name or avatar:getName().." ",color = color or wwit},
-    {text = mark,color = wwit,font = "figura:badges"},
-    {text = "${badges}",font = "minecraft:default"}
-  }
-  characterNameTbl[index] = {}
-  for fek,you in pairs(nameble) do
-    local texx = not not you.text
-    if texx then
-      table.insert(characterNameTbl[index],you)
-    end
-  end
-  if badgecol then
-    char.mark = vectors.hexToRGB(color)
-  end
-  char.name = json.encode(characterNameTbl[index])
-  return char
 end
 function CharactersAPI.getCharacters()
   return character
@@ -143,27 +128,22 @@ function CharactersAPI.getCharacter(index)
   return character[index]
 end
 function CharactersAPI.setCharacter(index)
-  if index ~= character.current then
-    local char = character[index] or {}
-    character.current = index
-    local part = characterPart[index]
-    updateChar("name",char)
-    for fek, you in pairs(characterPart) do
-      you:setVisible(false)
-    end
-    if part then
-      updateChar("part",char)
-    end
-    vanilla_model.PLAYER:setVisible(not part)
-    setMark(char)
+  if index == character.current then return end
+  local char = character[index] or {}
+  character.current = index
+  local part = characterPart[index]
+  updateChar("name",char)
+  for fek, you in pairs(characterPart) do
+    you:setVisible(false)
   end
-
+  updateChar("part",char)
+  setMark(char)
 end
 function CharactersAPI.amount()
   return characterCount
 end
-function CharactersAPI.setDefaultMark(index)
-  deffal = index
+function CharactersAPI.setDefaultMark(col)
+  deffal = col
   setMark(character.current)
 end
 function CharactersAPI.getParts()
